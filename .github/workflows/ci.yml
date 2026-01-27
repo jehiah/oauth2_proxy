@@ -1,0 +1,29 @@
+name: Go package
+
+on:
+  push:         {branches: [bitly_release, master]}
+  pull_request: {branches: [bitly_release, master]}
+
+jobs:
+  ci:
+
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: 'true'
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: latest
+
+      - name: Test
+        run: go test ./...
+
+      - name: Test with race
+        run: go test -timeout 90s -race ./...
