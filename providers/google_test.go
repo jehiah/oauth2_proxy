@@ -3,6 +3,7 @@ package providers
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,7 +14,9 @@ import (
 
 func newRedeemServer(body []byte) (*url.URL, *httptest.Server) {
 	s := httptest.NewServer(http.HandlerFunc(func(rw http.ResponseWriter, r *http.Request) {
-		rw.Write(body)
+		if _, err := rw.Write(body); err != nil {
+			panic(fmt.Sprintf("failed to write redeem response: %v", err))
+		}
 	}))
 	u, _ := url.Parse(s.URL)
 	return u, s
@@ -92,13 +95,13 @@ func TestGoogleProviderGetEmailAddress(t *testing.T) {
 		RefreshToken: "refresh12345",
 		IdToken:      "ignored prefix." + base64.URLEncoding.EncodeToString([]byte(`{"email": "michael.bland@gsa.gov", "email_verified":true}`)),
 	})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	var server *httptest.Server
 	p.RedeemURL, server = newRedeemServer(body)
 	defer server.Close()
 
 	session, err := p.Redeem("http://redirect/", "code1234")
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.NotEqual(t, session, nil)
 	assert.Equal(t, "michael.bland@gsa.gov", session.Email)
 	assert.Equal(t, "a1234", session.AccessToken)
@@ -122,14 +125,13 @@ func TestGoogleProviderWithoutValidateGroup(t *testing.T) {
 	assert.Equal(t, true, p.ValidateGroup("michael.bland@gsa.gov"))
 }
 
-//
 func TestGoogleProviderGetEmailAddressInvalidEncoding(t *testing.T) {
 	p := newGoogleProvider()
 	body, err := json.Marshal(redeemResponse{
 		AccessToken: "a1234",
 		IdToken:     "ignored prefix." + `{"email": "michael.bland@gsa.gov"}`,
 	})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	var server *httptest.Server
 	p.RedeemURL, server = newRedeemServer(body)
 	defer server.Close()
@@ -148,7 +150,7 @@ func TestGoogleProviderGetEmailAddressInvalidJson(t *testing.T) {
 		AccessToken: "a1234",
 		IdToken:     "ignored prefix." + base64.URLEncoding.EncodeToString([]byte(`{"email": michael.bland@gsa.gov}`)),
 	})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	var server *httptest.Server
 	p.RedeemURL, server = newRedeemServer(body)
 	defer server.Close()
@@ -167,7 +169,7 @@ func TestGoogleProviderGetEmailAddressEmailMissing(t *testing.T) {
 		AccessToken: "a1234",
 		IdToken:     "ignored prefix." + base64.URLEncoding.EncodeToString([]byte(`{"not_email": "missing"}`)),
 	})
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	var server *httptest.Server
 	p.RedeemURL, server = newRedeemServer(body)
 	defer server.Close()

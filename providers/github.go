@@ -3,7 +3,7 @@ package providers
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -58,14 +58,11 @@ func (p *GitHubProvider) SetOrgTeam(org, team string) {
 func (p *GitHubProvider) hasOrg(accessToken string) (bool, error) {
 	// https://developer.github.com/v3/orgs/#list-your-organizations
 
-	var orgs []struct {
+	type org struct {
 		Login string `json:"login"`
 	}
 
-	type orgsPage []struct {
-		Login string `json:"login"`
-	}
-
+	var orgs []org
 	pn := 1
 	for {
 		params := url.Values{
@@ -79,7 +76,10 @@ func (p *GitHubProvider) hasOrg(accessToken string) (bool, error) {
 			Path:     path.Join(p.ValidateURL.Path, "/user/orgs"),
 			RawQuery: params.Encode(),
 		}
-		req, _ := http.NewRequest("GET", endpoint.String(), nil)
+		req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+		if err != nil {
+			return false, err
+		}
 		req.Header.Set("Accept", "application/vnd.github.v3+json")
 		req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
 		resp, err := http.DefaultClient.Do(req)
@@ -87,26 +87,29 @@ func (p *GitHubProvider) hasOrg(accessToken string) (bool, error) {
 			return false, err
 		}
 
-		body, err := ioutil.ReadAll(resp.Body)
-		resp.Body.Close()
+		body, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return false, err
 		}
-		if resp.StatusCode != 200 {
+		err = resp.Body.Close()
+		if err != nil {
+			return false, err
+		}
+		if resp.StatusCode != http.StatusOK {
 			return false, fmt.Errorf(
 				"got %d from %q %s", resp.StatusCode, endpoint.String(), body)
 		}
 
-		var op orgsPage
-		if err := json.Unmarshal(body, &op); err != nil {
+		var page []org
+		if err := json.Unmarshal(body, &page); err != nil {
 			return false, err
 		}
-		if len(op) == 0 {
+		if len(page) == 0 {
 			break
 		}
 
-		orgs = append(orgs, op...)
-		pn += 1
+		orgs = append(orgs, page...)
+		pn++
 	}
 
 	var presentOrgs []string
@@ -143,7 +146,10 @@ func (p *GitHubProvider) hasOrgAndTeam(accessToken string) (bool, error) {
 		Path:     path.Join(p.ValidateURL.Path, "/user/teams"),
 		RawQuery: params.Encode(),
 	}
-	req, _ := http.NewRequest("GET", endpoint.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return false, err
+	}
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", accessToken))
 	resp, err := http.DefaultClient.Do(req)
@@ -151,12 +157,15 @@ func (p *GitHubProvider) hasOrgAndTeam(accessToken string) (bool, error) {
 		return false, err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return false, err
 	}
-	if resp.StatusCode != 200 {
+	err = resp.Body.Close()
+	if err != nil {
+		return false, err
+	}
+	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf(
 			"got %d from %q %s", resp.StatusCode, endpoint.String(), body)
 	}
@@ -172,9 +181,8 @@ func (p *GitHubProvider) hasOrgAndTeam(accessToken string) (bool, error) {
 		presentOrgs[team.Org.Login] = true
 		if p.Org == team.Org.Login {
 			hasOrg = true
-			ts := strings.Split(p.Team, ",")
-			for _, t := range ts {
-				if t == team.Slug {
+			for _, slug := range strings.Split(p.Team, ",") {
+				if slug == team.Slug {
 					log.Printf("Found Github Organization:%q Team:%q (Name:%q)", team.Org.Login, team.Slug, team.Name)
 					return true, nil
 				}
@@ -186,7 +194,7 @@ func (p *GitHubProvider) hasOrgAndTeam(accessToken string) (bool, error) {
 		log.Printf("Missing Team:%q from Org:%q in teams: %v", p.Team, p.Org, presentTeams)
 	} else {
 		var allOrgs []string
-		for org, _ := range presentOrgs {
+		for org := range presentOrgs {
 			allOrgs = append(allOrgs, org)
 		}
 		log.Printf("Missing Organization:%q in %#v", p.Org, allOrgs)
@@ -219,14 +227,20 @@ func (p *GitHubProvider) GetEmailAddress(s *SessionState) (string, error) {
 		Host:   p.ValidateURL.Host,
 		Path:   path.Join(p.ValidateURL.Path, "/user/emails"),
 	}
-	req, _ := http.NewRequest("GET", endpoint.String(), nil)
+	req, err := http.NewRequest(http.MethodGet, endpoint.String(), nil)
+	if err != nil {
+		return "", err
+	}
 	req.Header.Set("Authorization", fmt.Sprintf("token %s", s.AccessToken))
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return "", err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return "", err
 	}
@@ -274,8 +288,11 @@ func (p *GitHubProvider) GetUserName(s *SessionState) (string, error) {
 		return "", err
 	}
 
-	body, err := ioutil.ReadAll(resp.Body)
-	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return "", err
 	}

@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -117,7 +118,9 @@ func testAzureBackend(payload string) *httptest.Server {
 				w.WriteHeader(403)
 			} else {
 				w.WriteHeader(200)
-				w.Write([]byte(payload))
+				if _, err := w.Write([]byte(payload)); err != nil {
+					panic(fmt.Sprintf("failed to write azure payload: %v", err))
+				}
 			}
 		}))
 }
@@ -131,7 +134,7 @@ func TestAzureProviderGetEmailAddress(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user@windows.net", email)
 }
 
@@ -144,7 +147,7 @@ func TestAzureProviderGetEmailAddressMailNull(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user@windows.net", email)
 }
 
@@ -157,7 +160,7 @@ func TestAzureProviderGetEmailAddressGetUserPrincipalName(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user@windows.net", email)
 }
 
@@ -183,7 +186,7 @@ func TestAzureProviderGetEmailAddressEmptyUserPrincipalName(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "", email)
 }
 

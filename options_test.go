@@ -23,7 +23,7 @@ func testOptions() *Options {
 
 func errorMsg(msgs []string) string {
 	result := make([]string, 0)
-	result = append(result, "Invalid configuration:")
+	result = append(result, "invalid configuration:")
 	result = append(result, msgs...)
 	return strings.Join(result, "\n  ")
 }
@@ -226,16 +226,20 @@ func TestValidateSignatureKeyInvalidSpec(t *testing.T) {
 	o := testOptions()
 	o.SignatureKey = "invalid spec"
 	err := o.Validate()
-	assert.Equal(t, err.Error(), "Invalid configuration:\n"+
-		"  invalid signature hash:key spec: "+o.SignatureKey)
+	expected := errorMsg([]string{
+		"invalid signature hash:key spec: " + o.SignatureKey,
+	})
+	assert.Equal(t, expected, err.Error())
 }
 
 func TestValidateSignatureKeyUnsupportedAlgorithm(t *testing.T) {
 	o := testOptions()
 	o.SignatureKey = "unsupported:default secret"
 	err := o.Validate()
-	assert.Equal(t, err.Error(), "Invalid configuration:\n"+
-		"  unsupported signature hash algorithm: "+o.SignatureKey)
+	expected := errorMsg([]string{
+		"unsupported signature hash algorithm: " + o.SignatureKey,
+	})
+	assert.Equal(t, expected, err.Error())
 }
 
 func TestValidateCookie(t *testing.T) {
@@ -248,6 +252,8 @@ func TestValidateCookieBadName(t *testing.T) {
 	o := testOptions()
 	o.CookieName = "_bad_cookie_name{}"
 	err := o.Validate()
-	assert.Equal(t, err.Error(), "Invalid configuration:\n"+
-		fmt.Sprintf("  invalid cookie name: %q", o.CookieName))
+	expected := errorMsg([]string{
+		fmt.Sprintf("invalid cookie name: %q", o.CookieName),
+	})
+	assert.Equal(t, expected, err.Error())
 }

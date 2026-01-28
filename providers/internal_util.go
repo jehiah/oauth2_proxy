@@ -1,7 +1,7 @@
 package providers
 
 import (
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -62,8 +62,14 @@ func validateToken(p Provider, access_token string, header http.Header) bool {
 		return false
 	}
 
-	body, _ := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("failed to read token validation response body: %v", err)
+		return false
+	}
+	if err = resp.Body.Close(); err != nil {
+		log.Printf("failed to close response body: %v", err)
+	}
 	log.Printf("%d GET %s %s", resp.StatusCode, stripToken(endpoint), body)
 
 	if resp.StatusCode == 200 {

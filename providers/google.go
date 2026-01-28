@@ -2,22 +2,22 @@ package providers
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
-	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
-	"google.golang.org/api/admin/directory/v1"
+	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/option"
 )
 
 type GoogleProvider struct {
@@ -114,8 +114,11 @@ func (p *GoogleProvider) Redeem(redirectURL, code string) (s *SessionState, err 
 		return
 	}
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return
 	}
@@ -161,7 +164,7 @@ func (p *GoogleProvider) SetGroupRestriction(groups []string, adminEmail string,
 }
 
 func getAdminService(adminEmail string, credentialsReader io.Reader) *admin.Service {
-	data, err := ioutil.ReadAll(credentialsReader)
+	data, err := io.ReadAll(credentialsReader)
 	if err != nil {
 		log.Fatal("can't read Google credentials file:", err)
 	}
@@ -171,8 +174,8 @@ func getAdminService(adminEmail string, credentialsReader io.Reader) *admin.Serv
 	}
 	conf.Subject = adminEmail
 
-	client := conf.Client(oauth2.NoContext)
-	adminService, err := admin.New(client)
+	client := conf.Client(context.Background())
+	adminService, err := admin.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -232,9 +235,7 @@ func fetchGroupMembers(service *admin.Service, group string) ([]*admin.Member, e
 		if err != nil {
 			return nil, err
 		}
-		for _, member := range r.Members {
-			members = append(members, member)
-		}
+		members = append(members, r.Members...)
 		if r.NextPageToken == "" {
 			break
 		}
@@ -290,8 +291,11 @@ func (p *GoogleProvider) redeemRefreshToken(refreshToken string) (token string, 
 		return
 	}
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return
 	}

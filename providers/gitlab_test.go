@@ -38,7 +38,7 @@ func testGitLabBackend(payload string) *httptest.Server {
 				w.WriteHeader(404)
 			} else {
 				w.WriteHeader(200)
-				w.Write([]byte(payload))
+				mustWriteResponse(w, payload)
 			}
 		}))
 }
@@ -92,7 +92,7 @@ func TestGitLabProviderGetEmailAddress(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "michael.bland@gsa.gov", email)
 }
 

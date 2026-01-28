@@ -200,7 +200,7 @@ func (o *Options) Validate() error {
 		if string(secretBytes(o.CookieSecret)) != o.CookieSecret {
 			decoded = true
 		}
-		if valid_cookie_secret_size == false {
+		if !valid_cookie_secret_size {
 			var suffix string
 			if decoded {
 				suffix = fmt.Sprintf(" note: cookie secret was base64 decoded from %q", o.CookieSecret)
@@ -238,7 +238,7 @@ func (o *Options) Validate() error {
 	msgs = validateCookieName(o, msgs)
 
 	if len(msgs) != 0 {
-		return fmt.Errorf("Invalid configuration:\n  %s",
+		return fmt.Errorf("invalid configuration:\n  %s",
 			strings.Join(msgs, "\n  "))
 	}
 	return nil

@@ -1,9 +1,9 @@
+//go:build go1.3 && !plan9 && !solaris
 // +build go1.3,!plan9,!solaris
 
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -22,7 +22,7 @@ func (vt *ValidatorTest) UpdateEmailFileViaRenameAndReplace(
 	t *testing.T, emails []string) {
 	orig_file := vt.auth_email_file
 	var err error
-	vt.auth_email_file, err = ioutil.TempFile("", "test_auth_emails_")
+	vt.auth_email_file, err = os.CreateTemp("", "test_auth_emails_")
 	if err != nil {
 		t.Fatal("failed to create temp file for rename and replace: " +
 			err.Error())
@@ -31,13 +31,17 @@ func (vt *ValidatorTest) UpdateEmailFileViaRenameAndReplace(
 
 	moved_name := orig_file.Name() + "-moved"
 	err = os.Rename(orig_file.Name(), moved_name)
+	if err != nil {
+		t.Fatal("failed to rename temp file: " + err.Error())
+	}
 	err = os.Rename(vt.auth_email_file.Name(), orig_file.Name())
 	if err != nil {
-		t.Fatal("failed to rename and replace temp file: " +
-			err.Error())
+		t.Fatal("failed to replace temp file: " + err.Error())
 	}
 	vt.auth_email_file = orig_file
-	os.Remove(moved_name)
+	if err := os.Remove(moved_name); err != nil {
+		t.Fatal("failed to remove temp file: " + err.Error())
+	}
 }
 
 func TestValidatorOverwriteEmailListDirectly(t *testing.T) {

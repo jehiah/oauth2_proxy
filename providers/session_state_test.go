@@ -15,9 +15,9 @@ const altSecret = "0000000000abcdefghijklmnopqrstuv"
 
 func TestSessionStateSerialization(t *testing.T) {
 	c, err := cookie.NewCipher([]byte(secret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	c2, err := cookie.NewCipher([]byte(altSecret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	s := &SessionState{
 		Email:        "user@domain.com",
 		AccessToken:  "token1234",
@@ -25,12 +25,12 @@ func TestSessionStateSerialization(t *testing.T) {
 		RefreshToken: "refresh4321",
 	}
 	encoded, err := s.EncodeSessionState(c)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, 3, strings.Count(encoded, "|"))
 
 	ss, err := DecodeSessionState(encoded, c)
 	t.Logf("%#v", ss)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user", ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, s.AccessToken, ss.AccessToken)
@@ -40,7 +40,7 @@ func TestSessionStateSerialization(t *testing.T) {
 	// ensure a different cipher can't decode properly (ie: it gets gibberish)
 	ss, err = DecodeSessionState(encoded, c2)
 	t.Logf("%#v", ss)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user", ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, s.ExpiresOn.Unix(), ss.ExpiresOn.Unix())
@@ -50,9 +50,9 @@ func TestSessionStateSerialization(t *testing.T) {
 
 func TestSessionStateSerializationWithUser(t *testing.T) {
 	c, err := cookie.NewCipher([]byte(secret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	c2, err := cookie.NewCipher([]byte(altSecret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	s := &SessionState{
 		User:         "just-user",
 		Email:        "user@domain.com",
@@ -61,12 +61,12 @@ func TestSessionStateSerializationWithUser(t *testing.T) {
 		RefreshToken: "refresh4321",
 	}
 	encoded, err := s.EncodeSessionState(c)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, 3, strings.Count(encoded, "|"))
 
 	ss, err := DecodeSessionState(encoded, c)
 	t.Logf("%#v", ss)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, s.User, ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, s.AccessToken, ss.AccessToken)
@@ -76,7 +76,7 @@ func TestSessionStateSerializationWithUser(t *testing.T) {
 	// ensure a different cipher can't decode properly (ie: it gets gibberish)
 	ss, err = DecodeSessionState(encoded, c2)
 	t.Logf("%#v", ss)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, s.User, ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, s.ExpiresOn.Unix(), ss.ExpiresOn.Unix())
@@ -92,13 +92,13 @@ func TestSessionStateSerializationNoCipher(t *testing.T) {
 		RefreshToken: "refresh4321",
 	}
 	encoded, err := s.EncodeSessionState(nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	expected := fmt.Sprintf("email:%s user:", s.Email)
 	assert.Equal(t, expected, encoded)
 
 	// only email should have been serialized
 	ss, err := DecodeSessionState(encoded, nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "user", ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, "", ss.AccessToken)
@@ -114,13 +114,13 @@ func TestSessionStateSerializationNoCipherWithUser(t *testing.T) {
 		RefreshToken: "refresh4321",
 	}
 	encoded, err := s.EncodeSessionState(nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	expected := fmt.Sprintf("email:%s user:%s", s.Email, s.User)
 	assert.Equal(t, expected, encoded)
 
 	// only email should have been serialized
 	ss, err := DecodeSessionState(encoded, nil)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, s.User, ss.User)
 	assert.Equal(t, s.Email, ss.Email)
 	assert.Equal(t, "", ss.AccessToken)
