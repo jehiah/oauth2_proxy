@@ -6,13 +6,13 @@ require (
 	github.com/BurntSushi/toml v1.6.0
 	github.com/bitly/go-simplejson v0.5.1
 	github.com/coreos/go-oidc v2.5.0+incompatible
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/mbland/hmacauth v0.0.0-20170912233209-44256dfd4bfa
 	github.com/mreiferson/go-options v1.0.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.47.0
 	golang.org/x/oauth2 v0.34.0
 	google.golang.org/api v0.263.0
-	gopkg.in/fsnotify.v1 v1.4.7
 )
 
 require (
@@ -23,7 +23,6 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
-	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect

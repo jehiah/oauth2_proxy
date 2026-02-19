@@ -11,13 +11,13 @@ func TestEncodeAndDecodeAccessToken(t *testing.T) {
 	const secret = "0123456789abcdefghijklmnopqrstuv"
 	const token = "my access token"
 	c, err := NewCipher([]byte(secret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	encoded, err := c.Encrypt(token)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	decoded, err := c.Decrypt(encoded)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.NotEqual(t, token, encoded)
 	assert.Equal(t, token, decoded)
@@ -28,14 +28,15 @@ func TestEncodeAndDecodeAccessTokenB64(t *testing.T) {
 	const token = "my access token"
 
 	secret, err := base64.URLEncoding.DecodeString(secret_b64)
-	c, err := NewCipher([]byte(secret))
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
+	c, err := NewCipher(secret)
+	assert.Nil(t, err)
 
 	encoded, err := c.Encrypt(token)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	decoded, err := c.Decrypt(encoded)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 
 	assert.NotEqual(t, token, encoded)
 	assert.Equal(t, token, decoded)

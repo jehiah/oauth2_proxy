@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"log"
 	"os"
 	"strings"
 	"testing"
@@ -16,7 +16,7 @@ type ValidatorTest struct {
 func NewValidatorTest(t *testing.T) *ValidatorTest {
 	vt := &ValidatorTest{}
 	var err error
-	vt.auth_email_file, err = ioutil.TempFile("", "test_auth_emails_")
+	vt.auth_email_file, err = os.CreateTemp("", "test_auth_emails_")
 	if err != nil {
 		t.Fatal("failed to create temp file: " + err.Error())
 	}
@@ -26,7 +26,9 @@ func NewValidatorTest(t *testing.T) *ValidatorTest {
 
 func (vt *ValidatorTest) TearDown() {
 	vt.done <- true
-	os.Remove(vt.auth_email_file.Name())
+	if err := os.Remove(vt.auth_email_file.Name()); err != nil {
+		log.Printf("failed to remove temp file %s: %v", vt.auth_email_file.Name(), err)
+	}
 }
 
 func (vt *ValidatorTest) NewValidator(domains []string,
@@ -42,8 +44,10 @@ func (vt *ValidatorTest) NewValidator(domains []string,
 
 // This will close vt.auth_email_file.
 func (vt *ValidatorTest) WriteEmails(t *testing.T, emails []string) {
-	defer vt.auth_email_file.Close()
-	vt.auth_email_file.WriteString(strings.Join(emails, "\n"))
+	if _, err := vt.auth_email_file.WriteString(strings.Join(emails, "\n")); err != nil {
+		t.Fatal("failed to write temp file " +
+			vt.auth_email_file.Name() + ": " + err.Error())
+	}
 	if err := vt.auth_email_file.Close(); err != nil {
 		t.Fatal("failed to close temp file " +
 			vt.auth_email_file.Name() + ": " + err.Error())

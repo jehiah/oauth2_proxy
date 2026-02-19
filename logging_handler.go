@@ -6,6 +6,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -139,13 +140,13 @@ func (h loggingHandler) writeLogLine(username, upstream string, req *http.Reques
 		client = c
 	}
 
-	duration := float64(time.Now().Sub(ts)) / float64(time.Second)
+	duration := time.Since(ts)
 
-	h.logTemplate.Execute(h.writer, logMessageData{
+	err := h.logTemplate.Execute(h.writer, logMessageData{
 		Client:          client,
 		Host:            req.Host,
 		Protocol:        req.Proto,
-		RequestDuration: fmt.Sprintf("%0.3f", duration),
+		RequestDuration: fmt.Sprintf("%0.3f", duration.Seconds()),
 		RequestMethod:   req.Method,
 		RequestURI:      fmt.Sprintf("%q", url.RequestURI()),
 		ResponseSize:    fmt.Sprintf("%d", size),
@@ -155,6 +156,11 @@ func (h loggingHandler) writeLogLine(username, upstream string, req *http.Reques
 		UserAgent:       fmt.Sprintf("%q", req.UserAgent()),
 		Username:        username,
 	})
-
-	h.writer.Write([]byte("\n"))
+	if err != nil {
+		log.Printf("error executing request log template: %v", err)
+		return
+	}
+	if _, err := h.writer.Write([]byte("\n")); err != nil {
+		log.Printf("error writing request log terminator: %v", err)
+	}
 }

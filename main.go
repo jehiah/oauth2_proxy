@@ -81,7 +81,9 @@ func main() {
 
 	flagSet.String("signature-key", "", "GAP-Signature request signature key (algorithm:secretkey)")
 
-	flagSet.Parse(os.Args[1:])
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		log.Fatalf("failed to parse flags: %v", err)
+	}
 
 	if *showVersion {
 		fmt.Printf("oauth2_proxy v%s (built with %s)\n", VERSION, runtime.Version())

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -41,8 +41,11 @@ func (p *ProviderData) Redeem(redirectURL, code string) (s *SessionState, err er
 		return nil, err
 	}
 	var body []byte
-	body, err = ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err = io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	err = resp.Body.Close()
 	if err != nil {
 		return
 	}
@@ -79,8 +82,7 @@ func (p *ProviderData) Redeem(redirectURL, code string) (s *SessionState, err er
 
 // GetLoginURL with typical oauth parameters
 func (p *ProviderData) GetLoginURL(redirectURI, state string) string {
-	var a url.URL
-	a = *p.LoginURL
+	a := *p.LoginURL
 	params, _ := url.ParseQuery(a.RawQuery)
 	params.Set("redirect_uri", redirectURI)
 	params.Set("approval_prompt", p.ApprovalPrompt)

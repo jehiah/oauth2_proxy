@@ -1,6 +1,7 @@
 package providers
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -52,7 +53,9 @@ func testGitHubBackend(payload []string) *httptest.Server {
 				w.WriteHeader(404)
 			} else {
 				w.WriteHeader(200)
-				w.Write([]byte(payload[index]))
+				if _, err := w.Write([]byte(payload[index])); err != nil {
+					panic(fmt.Sprintf("failed to write github payload: %v", err))
+				}
 			}
 		}))
 }
@@ -106,7 +109,7 @@ func TestGitHubProviderGetEmailAddress(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "michael.bland@gsa.gov", email)
 }
 
@@ -124,7 +127,7 @@ func TestGitHubProviderGetEmailAddressWithOrg(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetEmailAddress(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "michael.bland@gsa.gov", email)
 }
 
@@ -168,6 +171,6 @@ func TestGitHubProviderGetUserName(t *testing.T) {
 
 	session := &SessionState{AccessToken: "imaginary_access_token"}
 	email, err := p.GetUserName(session)
-	assert.Equal(t, nil, err)
+	assert.Nil(t, err)
 	assert.Equal(t, "mbland", email)
 }

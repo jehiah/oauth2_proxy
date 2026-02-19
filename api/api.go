@@ -3,7 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 
@@ -16,11 +16,14 @@ func Request(req *http.Request) (*simplejson.Json, error) {
 		log.Printf("%s %s %s", req.Method, req.URL, err)
 		return nil, err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 	log.Printf("%d %s %s %s", resp.StatusCode, req.Method, req.URL, body)
 	if err != nil {
 		return nil, err
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("failed to close response body: %v", err)
 	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("got %d %s", resp.StatusCode, body)
@@ -38,14 +41,17 @@ func RequestJson(req *http.Request, v interface{}) error {
 		log.Printf("%s %s %s", req.Method, req.URL, err)
 		return err
 	}
-	body, err := ioutil.ReadAll(resp.Body)
-	resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
 	log.Printf("%d %s %s %s", resp.StatusCode, req.Method, req.URL, body)
 	if err != nil {
 		return err
 	}
 	if resp.StatusCode != 200 {
 		return fmt.Errorf("got %d %s", resp.StatusCode, body)
+	}
+	err = resp.Body.Close()
+	if err != nil {
+		log.Printf("failed to close response body: %v", err)
 	}
 	return json.Unmarshal(body, v)
 }

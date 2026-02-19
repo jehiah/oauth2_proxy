@@ -23,7 +23,11 @@ func NewHtpasswdFromFile(path string) (*HtpasswdFile, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer r.Close()
+	defer func() {
+		if cerr := r.Close(); cerr != nil {
+			log.Printf("error closing htpasswd file: %v", cerr)
+		}
+	}()
 	return NewHtpasswd(r)
 }
 

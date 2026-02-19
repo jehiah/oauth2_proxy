@@ -101,7 +101,7 @@ func (c *Cipher) Encrypt(value string) (string, error) {
 		return "", fmt.Errorf("failed to create initialization vector %s", err)
 	}
 
-	stream := cipher.NewCFBEncrypter(c.Block, iv)
+	stream := cipher.NewCTR(c.Block, iv)
 	stream.XORKeyStream(ciphertext[aes.BlockSize:], []byte(value))
 	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
@@ -121,7 +121,7 @@ func (c *Cipher) Decrypt(s string) (string, error) {
 
 	iv := encrypted[:aes.BlockSize]
 	encrypted = encrypted[aes.BlockSize:]
-	stream := cipher.NewCFBDecrypter(c.Block, iv)
+	stream := cipher.NewCTR(c.Block, iv)
 	stream.XORKeyStream(encrypted, encrypted)
 
 	return string(encrypted), nil

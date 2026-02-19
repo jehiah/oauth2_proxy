@@ -1,3 +1,4 @@
+//go:build go1.3 && !plan9 && !solaris
 // +build go1.3,!plan9,!solaris
 
 package main
@@ -8,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"gopkg.in/fsnotify.v1"
+	"github.com/fsnotify/fsnotify"
 )
 
 func WaitForReplacement(filename string, op fsnotify.Op,
@@ -37,12 +38,12 @@ func WatchForUpdates(filename string, done <-chan bool, action func()) {
 		log.Fatal("failed to create watcher for ", filename, ": ", err)
 	}
 	go func() {
-		defer watcher.Close()
+		defer closeWatcher(watcher)
 		for {
 			select {
-			case _ = <-done:
+			case <-done:
 				log.Printf("Shutting down watcher for: %s", filename)
-				break
+				return
 			case event := <-watcher.Events:
 				// On Arch Linux, it appears Chmod events precede Remove events,
 				// which causes a race between action() and the coming Remove event.
@@ -51,7 +52,9 @@ func WatchForUpdates(filename string, done <-chan bool, action func()) {
 				// can't be opened.
 				if event.Op&(fsnotify.Remove|fsnotify.Rename|fsnotify.Chmod) != 0 {
 					log.Printf("watching interrupted on event: %s", event)
-					watcher.Remove(filename)
+					if err := watcher.Remove(filename); err != nil {
+						log.Printf("failed to remove %s from watcher: %s", filename, err)
+					}
 					WaitForReplacement(filename, event.Op, watcher)
 				}
 				log.Printf("reloading after event: %s", event)
@@ -65,4 +68,10 @@ func WatchForUpdates(filename string, done <-chan bool, action func()) {
 		log.Fatal("failed to add ", filename, " to watcher: ", err)
 	}
 	log.Printf("watching %s for updates", filename)
+}
+
+func closeWatcher(watcher *fsnotify.Watcher) {
+	if err := watcher.Close(); err != nil {
+		log.Printf("failed to close watcher: %s", err)
+	}
 }

@@ -41,7 +41,12 @@ func (um *UserMap) LoadAuthenticatedEmailsFile() {
 	if err != nil {
 		log.Fatalf("failed opening authenticated-emails-file=%q, %s", um.usersFile, err)
 	}
-	defer r.Close()
+	defer func() {
+		if err := r.Close(); err != nil {
+			log.Printf("failed closing authenticated-emails-file=%q, %s", um.usersFile, err)
+		}
+	}()
+
 	csv_reader := csv.NewReader(r)
 	csv_reader.Comma = ','
 	csv_reader.Comment = '#'
@@ -59,8 +64,7 @@ func (um *UserMap) LoadAuthenticatedEmailsFile() {
 	atomic.StorePointer(&um.m, unsafe.Pointer(&updated))
 }
 
-func newValidatorImpl(domains []string, usersFile string,
-	done <-chan bool, onUpdate func()) func(string) bool {
+func newValidatorImpl(domains []string, usersFile string, done <-chan bool, onUpdate func()) func(string) bool {
 	validUsers := NewUserMap(usersFile, done, onUpdate)
 
 	var allowAll bool

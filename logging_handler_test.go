@@ -23,7 +23,9 @@ func TestLoggingHandler_ServeHTTP(t *testing.T) {
 	for _, test := range tests {
 		buf := bytes.NewBuffer(nil)
 		handler := func(w http.ResponseWriter, req *http.Request) {
-			w.Write([]byte("test"))
+			if _, err := w.Write([]byte("test")); err != nil {
+				t.Fatalf("failed to write response: %v", err)
+			}
 		}
 
 		h := LoggingHandler(buf, http.HandlerFunc(handler), true, test.Format)

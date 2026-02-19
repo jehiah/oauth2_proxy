@@ -38,13 +38,13 @@ func NewValidateSessionStateTest() *ValidateSessionStateTest {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if r.URL.Path != "/oauth/tokeninfo" {
 				w.WriteHeader(500)
-				w.Write([]byte("unknown URL"))
+				mustWriteResponse(w, "unknown URL")
 			}
 			token_param := r.FormValue("access_token")
 			if token_param == "" {
 				missing := false
 				received_headers := r.Header
-				for k, _ := range vt_test.header {
+				for k := range vt_test.header {
 					received := received_headers.Get(k)
 					expected := vt_test.header.Get(k)
 					if received == "" || received != expected {
@@ -53,11 +53,11 @@ func NewValidateSessionStateTest() *ValidateSessionStateTest {
 				}
 				if missing {
 					w.WriteHeader(500)
-					w.Write([]byte("no token param and missing or incorrect headers"))
+					mustWriteResponse(w, "no token param and missing or incorrect headers")
 				}
 			}
 			w.WriteHeader(vt_test.response_code)
-			w.Write([]byte("only code matters; contents disregarded"))
+			mustWriteResponse(w, "only code matters; contents disregarded")
 
 		}))
 	backend_url, _ := url.Parse(vt_test.backend.URL)

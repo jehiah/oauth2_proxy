@@ -1,3 +1,4 @@
+//go:build go1.3 && !plan9 && !solaris && !windows
 // +build go1.3,!plan9,!solaris,!windows
 
 // Turns out you can't copy over an existing file on Windows.
@@ -5,7 +6,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"os"
 	"testing"
 )
@@ -14,7 +14,7 @@ func (vt *ValidatorTest) UpdateEmailFileViaCopyingOver(
 	t *testing.T, emails []string) {
 	orig_file := vt.auth_email_file
 	var err error
-	vt.auth_email_file, err = ioutil.TempFile("", "test_auth_emails_")
+	vt.auth_email_file, err = os.CreateTemp("", "test_auth_emails_")
 	if err != nil {
 		t.Fatal("failed to create temp file for copy: " + err.Error())
 	}
