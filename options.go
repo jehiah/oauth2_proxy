@@ -37,6 +37,8 @@ type Options struct {
 	GoogleGroups             []string `flag:"google-group" cfg:"google_group"`
 	GoogleAdminEmail         string   `flag:"google-admin-email" cfg:"google_admin_email"`
 	GoogleServiceAccountJSON string   `flag:"google-service-account-json" cfg:"google_service_account_json"`
+	GoogleIDTokenAudiences   []string `flag:"google-id-token-audience" cfg:"google_id_token_audiences"`
+	EnableBearerTokenAuth    bool     `flag:"enable-bearer-token-auth" cfg:"enable_bearer_token_auth"`
 	HtpasswdFile             string   `flag:"htpasswd-file" cfg:"htpasswd_file"`
 	DisplayHtpasswdForm      bool     `flag:"display-htpasswd-form" cfg:"display_htpasswd_form"`
 	CustomTemplatesDir       string   `flag:"custom-templates-dir" cfg:"custom_templates_dir"`
@@ -95,24 +97,25 @@ type SignatureData struct {
 
 func NewOptions() *Options {
 	return &Options{
-		ProxyPrefix:          "/oauth2",
-		HttpAddress:          "127.0.0.1:4180",
-		HttpsAddress:         ":443",
-		DisplayHtpasswdForm:  true,
-		CookieName:           "_oauth2_proxy",
-		CookieSecure:         true,
-		CookieHttpOnly:       true,
-		CookieExpire:         time.Duration(168) * time.Hour,
-		CookieRefresh:        time.Duration(0),
-		SetXAuthRequest:      false,
-		SkipAuthPreflight:    false,
-		PassBasicAuth:        true,
-		PassUserHeaders:      true,
-		PassAccessToken:      false,
-		PassHostHeader:       true,
-		ApprovalPrompt:       "force",
-		RequestLogging:       true,
-		RequestLoggingFormat: defaultRequestLoggingFormat,
+		ProxyPrefix:           "/oauth2",
+		HttpAddress:           "127.0.0.1:4180",
+		HttpsAddress:          ":443",
+		DisplayHtpasswdForm:   true,
+		CookieName:            "_oauth2_proxy",
+		CookieSecure:          true,
+		CookieHttpOnly:        true,
+		CookieExpire:          time.Duration(168) * time.Hour,
+		CookieRefresh:         time.Duration(0),
+		SetXAuthRequest:       false,
+		SkipAuthPreflight:     false,
+		PassBasicAuth:         true,
+		PassUserHeaders:       true,
+		PassAccessToken:       false,
+		PassHostHeader:        true,
+		ApprovalPrompt:        "force",
+		RequestLogging:        true,
+		RequestLoggingFormat:  defaultRequestLoggingFormat,
+		EnableBearerTokenAuth: false,
 	}
 }
 
@@ -270,6 +273,15 @@ func parseProviderInfo(o *Options, msgs []string) []string {
 				msgs = append(msgs, "invalid Google credentials file: "+o.GoogleServiceAccountJSON)
 			} else {
 				p.SetGroupRestriction(o.GoogleGroups, o.GoogleAdminEmail, file)
+			}
+		}
+		if o.EnableBearerTokenAuth {
+			audiences := o.GoogleIDTokenAudiences
+			if len(audiences) == 0 {
+				audiences = []string{o.ClientID}
+			}
+			if err := p.InitIDTokenVerifier(audiences); err != nil {
+				msgs = append(msgs, fmt.Sprintf("failed to initialize ID token verifier: %v", err))
 			}
 		}
 	case *providers.OIDCProvider:

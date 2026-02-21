@@ -53,25 +53,26 @@ type OAuthProxy struct {
 	OAuthCallbackPath string
 	AuthOnlyPath      string
 
-	redirectURL         *url.URL // the url to receive requests at
-	provider            providers.Provider
-	ProxyPrefix         string
-	SignInMessage       string
-	HtpasswdFile        *HtpasswdFile
-	DisplayHtpasswdForm bool
-	serveMux            http.Handler
-	SetXAuthRequest     bool
-	PassBasicAuth       bool
-	SkipProviderButton  bool
-	PassUserHeaders     bool
-	BasicAuthPassword   string
-	PassAccessToken     bool
-	CookieCipher        *cookie.Cipher
-	skipAuthRegex       []string
-	skipAuthPreflight   bool
-	compiledRegex       []*regexp.Regexp
-	templates           *template.Template
-	Footer              string
+	redirectURL           *url.URL // the url to receive requests at
+	provider              providers.Provider
+	ProxyPrefix           string
+	SignInMessage         string
+	HtpasswdFile          *HtpasswdFile
+	DisplayHtpasswdForm   bool
+	serveMux              http.Handler
+	SetXAuthRequest       bool
+	PassBasicAuth         bool
+	SkipProviderButton    bool
+	PassUserHeaders       bool
+	BasicAuthPassword     string
+	PassAccessToken       bool
+	EnableBearerTokenAuth bool
+	CookieCipher          *cookie.Cipher
+	skipAuthRegex         []string
+	skipAuthPreflight     bool
+	compiledRegex         []*regexp.Regexp
+	templates             *template.Template
+	Footer                string
 }
 
 type UpstreamProxy struct {
@@ -190,22 +191,23 @@ func NewOAuthProxy(opts *Options, validator func(string) bool) *OAuthProxy {
 		OAuthCallbackPath: fmt.Sprintf("%s/callback", opts.ProxyPrefix),
 		AuthOnlyPath:      fmt.Sprintf("%s/auth", opts.ProxyPrefix),
 
-		ProxyPrefix:        opts.ProxyPrefix,
-		provider:           opts.provider,
-		serveMux:           serveMux,
-		redirectURL:        redirectURL,
-		skipAuthRegex:      opts.SkipAuthRegex,
-		skipAuthPreflight:  opts.SkipAuthPreflight,
-		compiledRegex:      opts.CompiledRegex,
-		SetXAuthRequest:    opts.SetXAuthRequest,
-		PassBasicAuth:      opts.PassBasicAuth,
-		PassUserHeaders:    opts.PassUserHeaders,
-		BasicAuthPassword:  opts.BasicAuthPassword,
-		PassAccessToken:    opts.PassAccessToken,
-		SkipProviderButton: opts.SkipProviderButton,
-		CookieCipher:       cipher,
-		templates:          loadTemplates(opts.CustomTemplatesDir),
-		Footer:             opts.Footer,
+		ProxyPrefix:           opts.ProxyPrefix,
+		provider:              opts.provider,
+		serveMux:              serveMux,
+		redirectURL:           redirectURL,
+		skipAuthRegex:         opts.SkipAuthRegex,
+		skipAuthPreflight:     opts.SkipAuthPreflight,
+		compiledRegex:         opts.CompiledRegex,
+		SetXAuthRequest:       opts.SetXAuthRequest,
+		PassBasicAuth:         opts.PassBasicAuth,
+		PassUserHeaders:       opts.PassUserHeaders,
+		BasicAuthPassword:     opts.BasicAuthPassword,
+		PassAccessToken:       opts.PassAccessToken,
+		EnableBearerTokenAuth: opts.EnableBearerTokenAuth,
+		SkipProviderButton:    opts.SkipProviderButton,
+		CookieCipher:          cipher,
+		templates:             loadTemplates(opts.CustomTemplatesDir),
+		Footer:                opts.Footer,
 	}
 }
 
@@ -690,6 +692,14 @@ func (p *OAuthProxy) Authenticate(rw http.ResponseWriter, req *http.Request) int
 		}
 	}
 
+	// Try bearer token auth if enabled
+	if session == nil && p.EnableBearerTokenAuth {
+		session, err = p.CheckBearerToken(req)
+		if err != nil {
+			log.Printf("%s %s", remoteAddr, err)
+		}
+	}
+
 	if session == nil {
 		return http.StatusForbidden
 	}
@@ -734,8 +744,11 @@ func (p *OAuthProxy) CheckBasicAuth(req *http.Request) (*providers.SessionState,
 		return nil, nil
 	}
 	s := strings.SplitN(auth, " ", 2)
-	if len(s) != 2 || s[0] != "Basic" {
+	if len(s) != 2 {
 		return nil, fmt.Errorf("invalid Authorization header %s", req.Header.Get("Authorization"))
+	}
+	if s[0] != "Basic" {
+		return nil, nil // Not basic auth, allow fallthrough to other auth methods
 	}
 	b, err := b64.StdEncoding.DecodeString(s[1])
 	if err != nil {
@@ -750,4 +763,47 @@ func (p *OAuthProxy) CheckBasicAuth(req *http.Request) (*providers.SessionState,
 		return &providers.SessionState{User: pair[0]}, nil
 	}
 	return nil, fmt.Errorf("%s not in HtpasswdFile", pair[0])
+}
+
+func (p *OAuthProxy) CheckBearerToken(req *http.Request) (*providers.SessionState, error) {
+	auth := req.Header.Get("Authorization")
+	if auth == "" {
+		return nil, nil
+	}
+
+	s := strings.SplitN(auth, " ", 2)
+	if len(s) != 2 {
+		return nil, fmt.Errorf("invalid Authorization header")
+	}
+
+	if s[0] != "Bearer" {
+		return nil, nil
+	}
+
+	token := s[1]
+
+	// Type assertion to check if provider supports bearer token validation
+	bearerProvider, ok := p.provider.(providers.BearerTokenProvider)
+	if !ok {
+		return nil, fmt.Errorf("bearer token auth only supported with Google provider")
+	}
+
+	ctx := req.Context()
+	session, err := bearerProvider.ValidateBearerToken(ctx, token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ID token: %v", err)
+	}
+
+	// Validate email against allowed domains/users
+	if !p.Validator(session.Email) {
+		return nil, fmt.Errorf("email %s not authorized", session.Email)
+	}
+
+	// Validate Google group membership if configured
+	if !p.provider.ValidateGroup(session.Email) {
+		return nil, fmt.Errorf("user %s not in allowed Google group", session.Email)
+	}
+
+	log.Printf("authenticated %q via bearer token", session.Email)
+	return session, nil
 }

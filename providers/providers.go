@@ -1,6 +1,8 @@
 package providers
 
 import (
+	"context"
+
 	"github.com/bitly/oauth2_proxy/cookie"
 )
 
@@ -15,6 +17,10 @@ type Provider interface {
 	RefreshSessionIfNeeded(*SessionState) (bool, error)
 	SessionFromCookie(string, *cookie.Cipher) (*SessionState, error)
 	CookieForSession(*SessionState, *cookie.Cipher) (string, error)
+}
+
+type BearerTokenProvider interface {
+	ValidateBearerToken(ctx context.Context, bearerToken string) (*SessionState, error)
 }
 
 func New(provider string, p *ProviderData) Provider {

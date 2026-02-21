@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	oidc "github.com/coreos/go-oidc"
 	"golang.org/x/oauth2/google"
 	admin "google.golang.org/api/admin/directory/v1"
 	"google.golang.org/api/googleapi"
@@ -26,6 +27,8 @@ type GoogleProvider struct {
 	// GroupValidator is a function that determines if the passed email is in
 	// the configured Google group.
 	GroupValidator func(string) bool
+	// IDTokenVerifier is used to verify Google ID tokens for bearer token authentication
+	IDTokenVerifier IDTokenVerifier
 }
 
 func NewGoogleProvider(p *ProviderData) *GoogleProvider {
@@ -248,6 +251,70 @@ func fetchGroupMembers(service *admin.Service, group string) ([]*admin.Member, e
 // group(s).
 func (p *GoogleProvider) ValidateGroup(email string) bool {
 	return p.GroupValidator(email)
+}
+
+// InitIDTokenVerifier initializes the ID token verifier for bearer token authentication
+func (p *GoogleProvider) InitIDTokenVerifier(audiences []string) error {
+	if len(audiences) == 0 {
+		return errors.New("at least one audience is required")
+	}
+
+	ctx := context.Background()
+	provider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+	if err != nil {
+		return fmt.Errorf("failed to create OIDC provider: %v", err)
+	}
+
+	verifiers := make(MultiVerifier, 0, len(audiences))
+	for _, audience := range audiences {
+		if audience == "" {
+			continue
+		}
+		verifiers = append(verifiers, provider.Verifier(&oidc.Config{
+			ClientID: audience,
+		}))
+	}
+
+	if len(verifiers) == 0 {
+		return errors.New("at least one audience is required")
+	}
+
+	p.IDTokenVerifier = verifiers
+
+	return nil
+}
+
+// ValidateBearerToken validates a Google bearer token and returns a session state.
+func (p *GoogleProvider) ValidateBearerToken(ctx context.Context, rawBearerToken string) (*SessionState, error) {
+	if p.IDTokenVerifier == nil {
+		return nil, errors.New("ID token verification not enabled")
+	}
+
+	idToken, err := p.IDTokenVerifier.Verify(ctx, rawBearerToken)
+	if err != nil {
+		return nil, fmt.Errorf("failed to verify ID token: %v", err)
+	}
+
+	var claims struct {
+		Email         string `json:"email"`
+		EmailVerified bool   `json:"email_verified"`
+	}
+	if err := idToken.Claims(&claims); err != nil {
+		return nil, fmt.Errorf("failed to parse ID token claims: %v", err)
+	}
+
+	if claims.Email == "" {
+		return nil, errors.New("missing email")
+	}
+	if !claims.EmailVerified {
+		return nil, errors.New("email not verified")
+	}
+
+	user := strings.Split(claims.Email, "@")[0]
+	return &SessionState{
+		Email: claims.Email,
+		User:  user,
+	}, nil
 }
 
 func (p *GoogleProvider) RefreshSessionIfNeeded(s *SessionState) (bool, error) {
