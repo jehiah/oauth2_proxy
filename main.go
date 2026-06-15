@@ -21,6 +21,7 @@ func main() {
 	upstreams := StringArray{}
 	skipAuthRegex := StringArray{}
 	googleGroups := StringArray{}
+	googleIDTokenAudience := StringArray{}
 
 	config := flagSet.String("config", "", "path to config file")
 	showVersion := flagSet.Bool("version", false, "print version string")
@@ -50,6 +51,7 @@ func main() {
 	flagSet.String("google-admin-email", "", "the google admin to impersonate for api calls")
 	flagSet.String("google-service-account-json", "", "the path to the service account json credentials")
 	flagSet.String("client-id", "", "the OAuth Client ID: ie: \"123456.apps.googleusercontent.com\"")
+	flagSet.Var(&googleIDTokenAudience, "google-id-token-audience", "request Google ID Token with this audience (may be given multiple times)")
 	flagSet.String("client-secret", "", "the OAuth Client Secret")
 	flagSet.String("authenticated-emails-file", "", "authenticate against emails via file (one per line)")
 	flagSet.String("htpasswd-file", "", "additionally authenticate against a htpasswd file. Entries must be created with \"htpasswd -s\" for SHA encryption or \"htpasswd -B\" for bcrypt encryption")
@@ -57,6 +59,7 @@ func main() {
 	flagSet.String("custom-templates-dir", "", "path to custom html templates")
 	flagSet.String("footer", "", "custom footer string. Use \"-\" to disable default footer.")
 	flagSet.String("proxy-prefix", "/oauth2", "the url root path that this proxy should be nested under (e.g. /<oauth2>/sign_in)")
+	flagSet.Bool("enable-bearer-token-auth", false, "enable authentication via Bearer token in Authorization header")
 
 	flagSet.String("cookie-name", "_oauth2_proxy", "the name of the cookie that the oauth_proxy creates")
 	flagSet.String("cookie-secret", "", "the seed string for secure cookies (optionally base64 encoded)")
