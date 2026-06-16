@@ -110,8 +110,9 @@ func main() {
 		log.Printf("%s", err)
 		os.Exit(1)
 	}
-	validator := NewValidator(opts.EmailDomains, opts.AuthenticatedEmailsFile)
+	validator, authenticatedEmails := NewValidator(opts.EmailDomains, opts.AuthenticatedEmailsFile)
 	oauthproxy := NewOAuthProxy(opts, validator)
+	oauthproxy.EmailIsAuthenticated = authenticatedEmails.IsValid
 
 	if len(opts.EmailDomains) != 0 && opts.AuthenticatedEmailsFile == "" {
 		if len(opts.EmailDomains) > 1 {
