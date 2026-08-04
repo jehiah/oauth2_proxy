@@ -9,6 +9,34 @@ import (
 	"time"
 )
 
+func TestLoggingHandler_Hijack(t *testing.T) {
+	// httputil.ReverseProxy hijacks the connection to proxy protocol upgrades
+	// such as websockets, so responseLogger must not hide http.Hijacker from
+	// the underlying ResponseWriter
+	hijackErr := make(chan error, 1)
+	handler := func(w http.ResponseWriter, req *http.Request) {
+		conn, _, err := http.NewResponseController(w).Hijack()
+		if err == nil {
+			conn.Close()
+		}
+		hijackErr <- err
+	}
+
+	h := LoggingHandler(bytes.NewBuffer(nil), http.HandlerFunc(handler), true, defaultRequestLoggingFormat)
+	server := httptest.NewServer(h)
+	defer server.Close()
+
+	// the connection is hijacked and closed without a response, so a client
+	// side error is expected here; only the hijack result is under test
+	if resp, err := http.Get(server.URL); err == nil {
+		resp.Body.Close()
+	}
+
+	if actual := <-hijackErr; actual != nil {
+		t.Errorf("Hijack() returned %v, expected nil", actual)
+	}
+}
+
 func TestLoggingHandler_ServeHTTP(t *testing.T) {
 	ts := time.Now()
 
