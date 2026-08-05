@@ -4,6 +4,8 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -60,6 +62,27 @@ func (l *responseLogger) WriteHeader(s int) {
 	l.ExtractGAPMetadata()
 	l.w.WriteHeader(s)
 	l.status = s
+}
+
+// Hijack implements the `http.Hijacker` interface that actual ResponseWriters
+// implement to support websockets
+func (l *responseLogger) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	if hj, ok := l.w.(http.Hijacker); ok {
+		return hj.Hijack()
+	}
+	return nil, nil, errors.New("http.Hijacker is not available on writer")
+}
+
+// Flush sends any buffered data to the client. Implements the `http.Flusher`
+// interface
+func (l *responseLogger) Flush() {
+	if flusher, ok := l.w.(http.Flusher); ok {
+		if l.status == 0 {
+			// The status will be StatusOK if WriteHeader has not been called yet
+			l.status = http.StatusOK
+		}
+		flusher.Flush()
+	}
 }
 
 func (l *responseLogger) Status() int {
