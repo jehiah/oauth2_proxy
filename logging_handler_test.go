@@ -17,7 +17,7 @@ func TestLoggingHandler_Hijack(t *testing.T) {
 	handler := func(w http.ResponseWriter, req *http.Request) {
 		conn, _, err := http.NewResponseController(w).Hijack()
 		if err == nil {
-			conn.Close()
+			_ = conn.Close()
 		}
 		hijackErr <- err
 	}
@@ -29,7 +29,7 @@ func TestLoggingHandler_Hijack(t *testing.T) {
 	// the connection is hijacked and closed without a response, so a client
 	// side error is expected here; only the hijack result is under test
 	if resp, err := http.Get(server.URL); err == nil {
-		resp.Body.Close()
+		_ = resp.Body.Close()
 	}
 
 	if actual := <-hijackErr; actual != nil {
