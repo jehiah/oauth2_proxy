@@ -33,13 +33,14 @@ func (vt *ValidatorTest) TearDown() {
 
 func (vt *ValidatorTest) NewValidator(domains []string,
 	updated chan<- bool) func(string) bool {
-	return newValidatorImpl(domains, vt.auth_email_file.Name(),
+	validator, _ := newValidatorImpl(domains, vt.auth_email_file.Name(),
 		vt.done, func() {
 			if vt.update_seen == false {
 				updated <- true
 				vt.update_seen = true
 			}
 		})
+	return validator
 }
 
 // This will close vt.auth_email_file.

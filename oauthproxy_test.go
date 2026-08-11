@@ -115,8 +115,9 @@ func TestRobotsTxt(t *testing.T) {
 
 type TestProvider struct {
 	*providers.ProviderData
-	EmailAddress string
-	ValidToken   bool
+	EmailAddress   string
+	ValidToken     bool
+	GroupValidator func(string) bool
 }
 
 func NewTestProvider(provider_url *url.URL, email_address string) *TestProvider {
@@ -150,6 +151,31 @@ func (tp *TestProvider) GetEmailAddress(session *providers.SessionState) (string
 
 func (tp *TestProvider) ValidateSessionState(session *providers.SessionState) bool {
 	return tp.ValidToken
+}
+
+func (tp *TestProvider) ValidateGroup(email string) bool {
+	if tp.GroupValidator != nil {
+		return tp.GroupValidator(email)
+	}
+	return tp.ProviderData.ValidateGroup(email)
+}
+
+func TestPermitGroupAuthenticatedEmailPreemptsGroupCheck(t *testing.T) {
+	provider := NewTestProvider(&url.URL{Host: "test.example.com"}, "")
+	// Provider group restriction that denies everyone.
+	provider.GroupValidator = func(string) bool { return false }
+
+	proxy := &OAuthProxy{provider: provider}
+
+	// Without a pre-empting emails file, the group check governs.
+	proxy.EmailIsAuthenticated = func(string) bool { return false }
+	assert.Equal(t, false, proxy.PermitGroup("user@example.com"))
+
+	// An email in the authenticated-emails-file is permitted despite the failing
+	// group check.
+	proxy.EmailIsAuthenticated = func(email string) bool { return email == "user@example.com" }
+	assert.Equal(t, true, proxy.PermitGroup("user@example.com"))
+	assert.Equal(t, false, proxy.PermitGroup("other@example.com"))
 }
 
 func TestBasicAuthPassword(t *testing.T) {

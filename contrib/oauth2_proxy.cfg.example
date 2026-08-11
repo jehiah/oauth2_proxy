@@ -43,6 +43,7 @@
 # pass_access_token = false
 
 ## Authenticated Email Addresses File (one email per line)
+## entries skip $email_domains check and $google_group checks
 # authenticated_emails_file = ""
 
 ## Htpasswd File (optional)
