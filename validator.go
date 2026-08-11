@@ -64,7 +64,7 @@ func (um *UserMap) LoadAuthenticatedEmailsFile() {
 	atomic.StorePointer(&um.m, unsafe.Pointer(&updated))
 }
 
-func newValidatorImpl(domains []string, usersFile string, done <-chan bool, onUpdate func()) func(string) bool {
+func newValidatorImpl(domains []string, usersFile string, done <-chan bool, onUpdate func()) (func(string) bool, *UserMap) {
 	validUsers := NewUserMap(usersFile, done, onUpdate)
 
 	var allowAll bool
@@ -92,9 +92,12 @@ func newValidatorImpl(domains []string, usersFile string, done <-chan bool, onUp
 		}
 		return valid
 	}
-	return validator
+	return validator, validUsers
 }
 
-func NewValidator(domains []string, usersFile string) func(string) bool {
+// NewValidator returns a function that validates an email against the allowed
+// domains and authenticated-emails-file, along with the UserMap backing the
+// authenticated-emails-file so callers can test that membership directly.
+func NewValidator(domains []string, usersFile string) (func(string) bool, *UserMap) {
 	return newValidatorImpl(domains, usersFile, nil, func() {})
 }

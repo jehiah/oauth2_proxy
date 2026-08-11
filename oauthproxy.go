@@ -44,6 +44,10 @@ type OAuthProxy struct {
 	CookieExpire   time.Duration
 	CookieRefresh  time.Duration
 	Validator      func(string) bool
+	// EmailIsAuthenticated reports whether an email is explicitly listed in the
+	// authenticated-emails-file. Such emails pre-empt (bypass) the provider
+	// group-membership check.
+	EmailIsAuthenticated func(string) bool
 
 	RobotsPath        string
 	PingPath          string
@@ -182,6 +186,9 @@ func NewOAuthProxy(opts *Options, validator func(string) bool) *OAuthProxy {
 		CookieExpire:   opts.CookieExpire,
 		CookieRefresh:  opts.CookieRefresh,
 		Validator:      validator,
+		// Default to no pre-empting; main() overrides this with a check against
+		// the authenticated-emails-file when one is configured.
+		EmailIsAuthenticated: func(string) bool { return false },
 
 		RobotsPath:        "/robots.txt",
 		PingPath:          "/ping",
@@ -539,6 +546,13 @@ func (p *OAuthProxy) OAuthStart(rw http.ResponseWriter, req *http.Request) {
 	http.Redirect(rw, req, p.provider.GetLoginURL(redirectURI, fmt.Sprintf("%v:%v", nonce, redirect)), http.StatusFound)
 }
 
+// PermitGroup reports whether email satisfies the provider's group restriction.
+// An email explicitly listed in the authenticated-emails-file pre-empts
+// (bypasses) the group-membership check.
+func (p *OAuthProxy) PermitGroup(email string) bool {
+	return p.EmailIsAuthenticated(email) || p.provider.ValidateGroup(email)
+}
+
 func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 	rw.Header().Set("X-Frame-Options", "DENY")
 	remoteAddr := getRemoteAddr(req)
@@ -586,7 +600,7 @@ func (p *OAuthProxy) OAuthCallback(rw http.ResponseWriter, req *http.Request) {
 	}
 
 	// set cookie, or deny
-	if p.Validator(session.Email) && p.provider.ValidateGroup(session.Email) {
+	if p.Validator(session.Email) && p.PermitGroup(session.Email) {
 		log.Printf("%s authentication complete %s", remoteAddr, session)
 		err := p.SaveSession(rw, req, session)
 		if err != nil {
@@ -799,8 +813,8 @@ func (p *OAuthProxy) CheckBearerToken(req *http.Request) (*providers.SessionStat
 		return nil, fmt.Errorf("email %s not authorized", session.Email)
 	}
 
-	// Validate Google group membership if configured
-	if !p.provider.ValidateGroup(session.Email) {
+	// Validate Google group membership if configured.
+	if !p.PermitGroup(session.Email) {
 		return nil, fmt.Errorf("user %s not in allowed Google group", session.Email)
 	}
 
